@@ -255,7 +255,9 @@ class StripeSettings(Document):
 				if custom_redirect_to:
 					redirect_to = custom_redirect_to
 
-				redirect_url = "payment-success"
+				redirect_url = "payment-success?doctype={}&docname={}".format(
+					self.data.reference_doctype, self.data.reference_docname
+				)
 
 			if self.redirect_url:
 				redirect_url = self.redirect_url
@@ -263,17 +265,20 @@ class StripeSettings(Document):
 		else:
 			redirect_url = "payment-failed"
 
-		if redirect_to:
+		if redirect_to and "?" in redirect_url:
+			redirect_url += "&" + urlencode({"redirect_to": redirect_to})
+		else:
 			redirect_url += "?" + urlencode({"redirect_to": redirect_to})
+
 		if redirect_message:
 			redirect_url += "&" + urlencode({"redirect_message": redirect_message})
 
 		return {"redirect_to": redirect_url, "status": status}
 
 
-def get_gateway_controller(doctype, docname):
-	reference_doc = frappe.get_doc(doctype, docname)
-	gateway_controller = frappe.db.get_value(
-		"Payment Gateway", reference_doc.payment_gateway, "gateway_controller"
-	)
+def get_gateway_controller(doctype, docname, payment_gateway=None):
+	if not payment_gateway:
+		reference_doc = frappe.get_doc(doctype, docname)
+		payment_gateway = reference_doc.payment_gateway
+	gateway_controller = frappe.db.get_value("Payment Gateway", payment_gateway, "gateway_controller")
 	return gateway_controller
